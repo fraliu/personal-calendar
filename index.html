@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人周程安排</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            color: #1a202c;
+            font-weight: 600;
+        }
+
+        .week-nav {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-btn {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            color: #4a5568;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .week-info {
+            font-size: 1rem;
+            color: #2d3748;
+            font-weight: 500;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+            max-width: 1400px;
+            margin: 0 auto;
+            border-left: 1px solid #e2e8f0;
+        }
+
+        .time-header {
+            background: #f7fafc;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 15px 5px;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #718096;
+            font-weight: 500;
+        }
+
+        .day-header {
+            background: #f7fafc;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 15px;
+            text-align: center;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .day-header.today {
+            background: #ebf8ff;
+            color: #3182ce;
+        }
+
+        .day-name {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .day-date {
+            font-size: 1.1rem;
+        }
+
+        .time-label {
+            background: #f7fafc;
+            padding: 0 5px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #718096;
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 120px; /* 每2小时一个标注，高度增加 */
+            position: relative;
+        }
+
+        /* 添加时间段的细分线 */
+        .time-label::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 33.33%;
+            width: 8px;
+            height: 1px;
+            background: #cbd5e0;
+        }
+
+        .time-label::before {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 66.66%;
+            width: 8px;
+            height: 1px;
+            background: #cbd5e0;
+        }
+
+        .time-slot-group {
+            background: white;
+            height: 120px; /* 对应2小时 */
+            border-right: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .time-slot {
+            flex: 1;
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+            position: relative;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .time-slot:last-child {
+            border-bottom: none;
+        }
+
+        .time-slot:hover {
+            background: #f7fafc;
+        }
+
+        .time-slot.selecting {
+            background: #bee3f8;
+        }
+
+        .time-slot.selected-range {
+            background: #90cdf4;
+        }
+
+        .event {
+            position: absolute;
+            left: 2px;
+            right: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 4px;
+            padding: 6px;
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
+            z-index: 10;
+        }
+
+        .event:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .event-title {
+            font-weight: 600;
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-time {
+            font-size: 0.65rem;
+            opacity: 0.9;
+            margin-top: 1px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 20vh auto 0;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal h3 {
+            margin-bottom: 20px;
+            color: #2d3748;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .time-info {
+            background: #ebf8ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #2b6cb0;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 25px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            min-width: 100px;
+        }
+
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .event-modal-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .calendar-grid {
+                grid-template-columns: 60px repeat(7, 1fr);
+                font-size: 0.9rem;
+            }
+            
+            .time-slot-group {
+                height: 100px;
+            }
+            
+            .time-label {
+                height: 100px;
+                font-size: 0.7rem;
+            }
+            
+            .modal-content {
+                margin: 10vh 20px 0;
+                max-width: none;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>📅 个人周程安排</h1>
+                <div class="week-nav">
+                    <button class="nav-btn" onclick="changeWeek(-1)">← 上一周</button>
+                    <div class="week-info" id="weekInfo"></div>
+                    <button class="nav-btn" onclick="changeWeek(1)">下一周 →</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+
+    <!-- 添加事件模态框 -->
+    <div class="modal" id="addEventModal">
+        <div class="modal-content">
+            <h3>添加新事件</h3>
+            <div class="time-info" id="selectedTimeInfo"></div>
+            <div class="form-group">
+                <label class="form-label">事件标题</label>
+                <input type="text" class="form-input" id="eventTitle" placeholder="输入事件标题..." />
+            </div>
+            <div class="form-group">
+                <label class="form-label">描述 (可选)</label>
+                <input type="text" class="form-input" id="eventDescription" placeholder="添加描述..." />
+            </div>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeAddModal()">取消</button>
+                <button class="btn btn-primary" onclick="confirmAddEvent()">添加事件</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 事件操作模态框 -->
+    <div class="modal" id="eventModal">
+        <div class="modal-content">
+            <h3 id="eventModalTitle"></h3>
+            <div class="time-info" id="eventTimeInfo"></div>
+            <div id="eventDescription" style="margin: 15px 0; color: #4a5568;"></div>
+            <div class="event-modal-buttons">
+                <button class="btn btn-secondary" onclick="closeEventModal()">取消</button>
+                <button class="btn btn-danger" onclick="deleteEvent()">删除事件</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentWeekStart = getWeekStart(new Date());
+        let isSelecting = false;
+        let selectionStart = null;
+        let selectionEnd = null;
+        let events = JSON.parse(localStorage.getItem('weekly-scheduler-events') || '{}');
+        let selectedEvent = null;
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateWeekDisplay();
+            renderCalendar();
+        });
+
+        function getWeekStart(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // 周一为第一天
+            return new Date(d.setDate(diff));
+        }
+
+        function updateWeekDisplay() {
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            
+            const options = { month: 'short', day: 'numeric' };
+            const startStr = currentWeekStart.toLocaleDateString('zh-CN', options);
+            const endStr = weekEnd.toLocaleDateString('zh-CN', options);
+            const year = currentWeekStart.getFullYear();
+            
+            document.getElementById('weekInfo').textContent = `${year}年 ${startStr} - ${endStr}`;
+        }
+
+        function changeWeek(direction) {
+            currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
+            updateWeekDisplay();
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            // 创建表头
+            const timeHeader = document.createElement('div');
+            timeHeader.className = 'time-header';
+            timeHeader.textContent = '时间';
+            grid.appendChild(timeHeader);
+
+            // 创建日期表头
+            const dayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+            const today = new Date();
+            
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(date.getDate() + i);
+                
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'day-header';
+                
+                if (isSameDay(date, today)) {
+                    dayHeader.classList.add('today');
+                }
+                
+                dayHeader.innerHTML = `
+                    <div class="day-name">${dayNames[i]}</div>
+                    <div class="day-date">${date.getDate()}</div>
+                `;
+                grid.appendChild(dayHeader);
+            }
+
+            // 创建时间段 - 每2小时一个大组，包含4个30分钟段
+            for (let hour = 0; hour < 24; hour += 2) {
+                // 时间标签 - 显示整2小时时间
+                const timeLabel = document.createElement('div');
+                timeLabel.className = 'time-label';
+                timeLabel.textContent = `${hour.toString().padStart(2, '0')}:00`;
+                grid.appendChild(timeLabel);
+
+                // 为每一天创建时间段组
+                for (let day = 0; day < 7; day++) {
+                    const date = new Date(currentWeekStart);
+                    date.setDate(date.getDate() + day);
+                    
+                    const slotGroup = document.createElement('div');
+                    slotGroup.className = 'time-slot-group';
+                    slotGroup.dataset.day = day;
+                    slotGroup.dataset.date = formatDate(date);
+
+                    // 在每个2小时组中创建4个30分钟的时间段
+                    for (let subHour = 0; subHour < 2; subHour++) {
+                        for (let minute = 0; minute < 60; minute += 30) {
+                            const currentHour = hour + subHour;
+                            const slot = document.createElement('div');
+                            slot.className = 'time-slot';
+                            slot.dataset.day = day;
+                            slot.dataset.hour = currentHour;
+                            slot.dataset.minute = minute;
+                            slot.dataset.date = formatDate(date);
+
+                            // 添加选择事件
+                            slot.addEventListener('mousedown', startTimeSelection);
+                            slot.addEventListener('mouseenter', continueTimeSelection);
+                            slot.addEventListener('mouseup', endTimeSelection);
+
+                            slotGroup.appendChild(slot);
+                        }
+                    }
+
+                    // 渲染这个时间组中的事件
+                    renderGroupEvents(slotGroup, formatDate(date), hour);
+
+                    grid.appendChild(slotGroup);
+                }
+            }
+        }
+
+        function renderGroupEvents(slotGroup, dateKey, startHour) {
+            const dayEvents = events[dateKey] || [];
+            
+            // 找到与当前2小时时间段重叠的事件
+            dayEvents.forEach(event => {
+                const eventStart = event.startHour * 60 + event.startMinute;
+                const eventEnd = event.endHour * 60 + event.endMinute;
+                const groupStart = startHour * 60;
+                const groupEnd = (startHour + 2) * 60;
+
+                // 检查事件是否与当前2小时段重叠
+                if (eventStart < groupEnd && eventEnd > groupStart) {
+                    // 计算事件在当前组中的位置和大小
+                    const relativeStart = Math.max(0, eventStart - groupStart);
+                    const relativeEnd = Math.min(120, eventEnd - groupStart); // 120分钟 = 2小时
+                    const duration = relativeEnd - relativeStart;
+
+                    if (duration > 0) {
+                        const eventDiv = document.createElement('div');
+                        eventDiv.className = 'event';
+                        
+                        // 计算位置百分比
+                        const topPercent = (relativeStart / 120) * 100;
+                        const heightPercent = (duration / 120) * 100;
+                        
+                        eventDiv.style.top = `${topPercent}%`;
+                        eventDiv.style.height = `${heightPercent}%`;
+                        
+                        eventDiv.innerHTML = `
+                            <div class="event-title">${event.title}</div>
+                            <div class="event-time">${formatTime(event.startHour, event.startMinute)} - ${formatTime(event.endHour, event.endMinute)}</div>
+                        `;
+                        
+                        eventDiv.onclick = (e) => {
+                            e.stopPropagation();
+                            showEventModal(event, dateKey);
+                        };
+                        
+                        slotGroup.appendChild(eventDiv);
+                    }
+                }
+            });
+        }
+
+        function startTimeSelection(e) {
+            e.preventDefault();
+            isSelecting = true;
+            selectionStart = {
+                day: parseInt(e.target.dataset.day),
+                hour: parseInt(e.target.dataset.hour),
+                minute: parseInt(e.target.dataset.minute),
+                date: e.target.dataset.date
+            };
+            selectionEnd = { ...selectionStart };
+            
+            updateSelectionDisplay();
+        }
+
+        function continueTimeSelection(e) {
+            if (!isSelecting) return;
+            
+            const day = parseInt(e.target.dataset.day);
+            const hour = parseInt(e.target.dataset.hour);
+            const minute = parseInt(e.target.dataset.minute);
+            
+            // 只允许同一天内选择
+            if (day === selectionStart.day) {
+                selectionEnd = {
+                    day,
+                    hour,
+                    minute,
+                    date: e.target.dataset.date
+                };
+                updateSelectionDisplay();
+            }
+        }
+
+        function endTimeSelection(e) {
+            if (isSelecting && selectionStart && selectionEnd) {
+                showAddEventModal();
+            }
+            isSelecting = false;
+        }
+
+        function updateSelectionDisplay() {
+            // 清除之前的选择样式
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selecting', 'selected-range');
+            });
+
+            if (!selectionStart || !selectionEnd) return;
+
+            const startTime = selectionStart.hour * 60 + selectionStart.minute;
+            const endTime = selectionEnd.hour * 60 + selectionEnd.minute;
+            const minTime = Math.min(startTime, endTime);
+            const maxTime = Math.max(startTime, endTime);
+
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                const day = parseInt(slot.dataset.day);
+                const hour = parseInt(slot.dataset.hour);
+                const minute = parseInt(slot.dataset.minute);
+                const slotTime = hour * 60 + minute;
+
+                if (day === selectionStart.day && slotTime >= minTime && slotTime <= maxTime) {
+                    slot.classList.add('selected-range');
+                }
+            });
+        }
+
+        function showAddEventModal() {
+            const startTime = Math.min(
+                selectionStart.hour * 60 + selectionStart.minute,
+                selectionEnd.hour * 60 + selectionEnd.minute
+            );
+            const endTime = Math.max(
+                selectionStart.hour * 60 + selectionStart.minute,
+                selectionEnd.hour * 60 + selectionEnd.minute
+            ) + 30; // 加30分钟到最后一个时间段
+
+            const startHour = Math.floor(startTime / 60);
+            const startMinute = startTime % 60;
+            const endHour = Math.floor(endTime / 60);
+            const endMinute = endTime % 60;
+
+            const date = new Date(currentWeekStart);
+            date.setDate(date.getDate() + selectionStart.day);
+            const dateStr = date.toLocaleDateString('zh-CN', { 
+                month: 'long', 
+                day: 'numeric',
+                weekday: 'long'
+            });
+
+            document.getElementById('selectedTimeInfo').textContent = 
+                `${dateStr} ${formatTime(startHour, startMinute)} - ${formatTime(endHour, endMinute)}`;
+            
+            document.getElementById('eventTitle').value = '';
+            document.getElementById('eventDescription').value = '';
+            document.getElementById('addEventModal').style.display = 'block';
+        }
+
+        function closeAddModal() {
+            document.getElementById('addEventModal').style.display = 'none';
+            clearSelection();
+        }
+
+        function confirmAddEvent() {
+            const title = document.getElementById('eventTitle').value.trim();
+            const description = document.getElementById('eventDescription').value.trim();
+            
+            if (!title) {
+                alert('请输入事件标题');
+                return;
+            }
+
+            const startTime = Math.min(
+                selectionStart.hour * 60 + selectionStart.minute,
+                selectionEnd.hour * 60 + selectionEnd.minute
+            );
+            const endTime = Math.max(
+                selectionStart.hour * 60 + selectionStart.minute,
+                selectionEnd.hour * 60 + selectionEnd.minute
+            ) + 30;
+
+            const startHour = Math.floor(startTime / 60);
+            const startMinute = startTime % 60;
+            const endHour = Math.floor(endTime / 60);
+            const endMinute = endTime % 60;
+
+            const dateKey = selectionStart.date;
+            if (!events[dateKey]) {
+                events[dateKey] = [];
+            }
+
+            const event = {
+                id: Date.now(),
+                title,
+                description,
+                startHour,
+                startMinute,
+                endHour,
+                endMinute
+            };
+
+            events[dateKey].push(event);
+            localStorage.setItem('weekly-scheduler-events', JSON.stringify(events));
+
+            closeAddModal();
+            renderCalendar();
+        }
+
+        function showEventModal(event, dateKey) {
+            selectedEvent = { event, dateKey };
+            
+            document.getElementById('eventModalTitle').textContent = event.title;
+            document.getElementById('eventTimeInfo').textContent = 
+                `${formatTime(event.startHour, event.startMinute)} - ${formatTime(event.endHour, event.endMinute)}`;
+            
+            const descDiv = document.getElementById('eventDescription');
+            if (event.description) {
+                descDiv.textContent = event.description;
+                descDiv.style.display = 'block';
+            } else {
+                descDiv.style.display = 'none';
+            }
+            
+            document.getElementById('eventModal').style.display = 'block';
+        }
+
+        function closeEventModal() {
+            document.getElementById('eventModal').style.display = 'none';
+            selectedEvent = null;
+        }
+
+        function deleteEvent() {
+            if (!selectedEvent) return;
+
+            const { event, dateKey } = selectedEvent;
+            events[dateKey] = events[dateKey].filter(e => e.id !== event.id);
+            
+            if (events[dateKey].length === 0) {
+                delete events[dateKey];
+            }
+            
+            localStorage.setItem('weekly-scheduler-events', JSON.stringify(events));
+            closeEventModal();
+            renderCalendar();
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selecting', 'selected-range');
+            });
+            selectionStart = null;
+            selectionEnd = null;
+        }
+
+        function formatDate(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        function formatTime(hour, minute) {
+            return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        }
+
+        function isSameDay(date1, date2) {
+            return date1.toDateString() === date2.toDateString();
+        }
+
+        // 全局事件监听
+        document.addEventListener('mouseup', () => {
+            if (isSelecting) {
+                endTimeSelection();
+            }
+        });
+
+        // 防止拖拽选择时的文本选择
+        document.addEventListener('selectstart', function(e) {
+            if (isSelecting) {
+                e.preventDefault();
+            }
+        });
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            const addModal = document.getElementById('addEventModal');
+            const eventModal = document.getElementById('eventModal');
+            
+            if (event.target === addModal) {
+                closeAddModal();
+            }
+            if (event.target === eventModal) {
+                closeEventModal();
+            }
+        }
+    </script>
+</body>
+</html>
